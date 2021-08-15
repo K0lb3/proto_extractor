@@ -3,9 +3,28 @@ from google.protobuf.descriptor_pb2 import FileDescriptorProto
 import os
 from enum import IntEnum
 import re
+from typing import Union
 
 
-def extract_via_filename(data):
+def extract_via_filename(src: Union[str, bytes], dst: str):
+    """Extracts .proto messages from the source by looking for .proto filenames in the source.
+
+    Args:
+        src (str|bytes): The source that should be searched. Can be a filepath or bytes.
+        dst (str): Destination folder where the reconstructed .proto files will be stored in.
+    """
+    if isinstance(src, str):
+        with open(src, "rb") as f:
+            data = f.read()
+    else:
+        data = src
+
+    fdps = search_via_filename(data)
+    for fdp in fdps:
+        dump(fdp, dst)
+
+
+def search_via_filename(data):
     found = []
     # FileDescriptor:
     # 1. 10 - name field - (0x01 << 3) | 2 - 2 wiretype for string
@@ -209,13 +228,13 @@ def write_extension(f, ext, indent, namespace):
     f.write(f"{'  '*indent}}}\n\n")
 
 
-def dump(fdp: FileDescriptorProto, path=""):
+def dump(fdp: FileDescriptorProto, dst=""):
     ###############################
     # 1. find filename
     ###############################
     *dir, name = fdp.name.split("/")
 
-    dir = os.path.join(path, *dir)
+    dir = os.path.join(dst, *dir)
     if dir:
         os.makedirs(dir, exist_ok=True)
 
