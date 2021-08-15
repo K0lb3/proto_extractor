@@ -5,6 +5,38 @@ from enum import IntEnum
 import re
 
 
+def extract_via_filename(data):
+    found = []
+    # FileDescriptor:
+    # 1. 10 - name field - (0x01 << 3) | 2 - 2 wiretype for string
+    # 2. length of name as varint
+    # 3. name
+    i = 0
+    while i != -1:
+        i = data.find(b".proto", i + 1)
+        end = i + len(".proto")
+        for j in range(255):  # name shouldn't be longer than that
+            if data[i - j] == 10:
+                break
+        else:
+            # only reaches here IF previous loop didn't break
+            # so if no FieldDescriptor name field tag was found
+            continue
+
+        length, offset = read_varint(data, i - j + 1)
+        filename = data[offset : offset + length]
+        try:
+            filename = filename.decode("utf8")
+            fdp = FileDescriptorProto()
+            fdp.ParseFromString(data[offset - 2 :])
+            if fdp.name:
+                found.append(fdp)
+        except (UnicodeDecodeError, DecodeError):
+            continue
+
+    return found
+
+
 def read_varint(data, off):
     shift = 0
     result = 0
@@ -33,40 +65,6 @@ def resolve_class_path(typ: str, namespace: list[str], msg_name: str):
         if not typ:  # fix if parent message has the same name as the nested one
             typ = msg_name
     return typ
-
-
-def lookup_via_filename(data):
-    found = []
-    # FileDescriptor:
-    # 1. 10 - name field - (0x01 << 3) | 2 - 2 wiretype for string
-    # 2. length of name as varint
-    # 3. name
-    i = 0
-    while i != -1:
-        # i = data.find(b"Messages/LocalServerMessage.proto", i+1)
-        # end = i + len("Messages/LocalServerMessage.proto")
-        i = data.find(b".proto", i + 1)
-        end = i + len(".proto")
-        for j in range(255):  # name shouldn't be longer than that
-            if data[i - j] == 10:
-                break
-        else:
-            # only reaches here IF previous loop didn't break
-            # so if no FieldDescriptor name field tag was found
-            continue
-
-        length, offset = read_varint(data, i - j + 1)
-        filename = data[offset : offset + length]
-        try:
-            filename = filename.decode("utf8")
-            fdp = FileDescriptorProto()
-            fdp.ParseFromString(data[offset - 2 :])
-            if fdp.name:
-                found.append(fdp)
-        except (UnicodeDecodeError, DecodeError):
-            continue
-
-    return found
 
 
 class Type(IntEnum):
@@ -279,6 +277,7 @@ def dump(fdp: FileDescriptorProto, path=""):
                 )
                 f.write(f"  rpc {method.name}({input_type} return ({output_type});\n")
             f.write(f"}}\n")
+
 
 if __name__ == "__main__":
     pass

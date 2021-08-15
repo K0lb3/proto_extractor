@@ -10,3 +10,9 @@ This encoded version is always created, besides if the original .proto contained
 
 
 Since the structure of the encoded proto aka descriptor is known, all that has to be done to extract .proto files from an app, is looking for specific patterns and then trying to parse that place via the descriptor proto.
+
+## TODO
+
+- add setup
+- add to path
+- more agressive extration
