@@ -1,0 +1,101 @@
+syntax = "proto2";
+
+package test.all;
+
+option cc_enable_arenas = true;
+
+enum EnumAllowingAlias {
+    option allow_alias = true;
+    UNKNOWN = 0;
+    STARTED = 1;
+    RUNNING = 1;
+}
+
+message SearchResponse {
+  repeated group Result = 1 {
+    required string url = 2;
+    optional string title = 3;
+    repeated string snippets = 4;
+  }
+}
+
+message Message {
+    enum NestedEnum {
+      ezero = 0;
+      eone = 1;
+    }
+  
+  
+    message Varint{
+      optional int32 int32 = 1;
+      optional int64 int64 = 2;
+      optional uint32 uint32 = 3;
+      optional uint64 uint64 = 4;
+      optional sint32 sint32 = 5;
+      optional sint64 sint64 = 6;
+      optional bool bool = 7;
+      optional NestedEnum enum = 8;
+    }
+  
+    message B64 {
+      optional fixed64 fixed64 = 1;
+      optional sfixed64 sfixed64 = 2;
+      optional double double = 3;
+    }
+  
+    message LengthDelimited {
+      optional string string = 1;
+      optional B64 b64 = 2;
+      repeated string repeated_string = 3;
+    }
+    // 3	Start group
+    // groups (deprecated)
+    // 4	End group
+    // groups (deprecated)
+  
+    message B32{
+      optional fixed32 fixed32 = 1;
+      optional sfixed32 sfixed32 = 2;
+      optional float float = 3;
+    }
+    
+    message Options{
+        repeated bool repeated_packed_bool = 4 [packed=true];
+        required bool default = 5 [default=true];
+        required bool deprecated = 6 [deprecated=true];
+    }
+
+    required Varint varint = 1; // info????
+    required B64 b64 = 2;
+    required LengthDelimited lengthdelimited = 3;
+    required B32 b32 = 4;
+    required Options options = 5;
+    map<string, Message.Options> maps = 7;
+
+    reserved 6, 15, 9 to 11;
+    reserved "foo", "bar";
+
+    extensions 100 to 199;
+}
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+  optional string my_option = 51234;
+}
+
+message MyMessage {
+  option (my_option) = "Hello world!";
+}
+
+message SampleMessage {
+  oneof test_oneof {
+     string name = 4;
+     MyMessage sub_message = 9;
+  }
+  required bool not_oneof = 1 [default = true]; 
+}
+
+service SearchService {
+  rpc Search(SampleMessage) returns (SearchResponse);
+}
