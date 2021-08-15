@@ -1,5 +1,10 @@
 This module extracts .proto files from compiled applications and memory dumps
 
+## Requirements
+
+- Python 3.6+
+- [protobuf](https://pypi.org/project/protobuf)
+
 ## How it works
 
 Protobuf stores an encoded version of the original .proto file as string named ``descriptor_table_protodef_{encoded_file_name}``.
