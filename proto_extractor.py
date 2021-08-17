@@ -349,7 +349,7 @@ def dump(fdp: FileDescriptorProto, dst=""):
 
 def extract_cli():
     """function for CLI access"""
-    parser = argparse.ArgumentParser(usage = """"protoex - a protobuf structure extractor"
+    parser = argparse.ArgumentParser(usage = """"proto_extractor - a protobuf structure extractor"
 
     Extraction Modes:
     - filename : try to find structures by looking for viable original filenames (less trash)
