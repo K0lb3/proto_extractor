@@ -4,14 +4,19 @@ import os
 from enum import IntEnum
 import re
 from typing import Union
+from multiprocessing import Pool, cpu_count
+import argparse
 
 
-def extract_via_filename(src: Union[str, bytes], dst: str):
+def extract_via_filename(src: Union[str, bytes], dst: str) -> int:
     """Extracts .proto messages from the source by looking for .proto filenames in the source.
 
     Args:
         src (str|bytes): The source that should be searched. Can be a filepath or bytes.
-        dst (str): Destination folder where the reconstructed .proto files will be stored in.
+        dst (str): Destination folder where the reconstructed structures will be stored in.
+
+    Returns:
+       int: Count of extracted message structures
     """
     if isinstance(src, str):
         with open(src, "rb") as f:
@@ -22,6 +27,29 @@ def extract_via_filename(src: Union[str, bytes], dst: str):
     fdps = search_via_filename(data)
     for fdp in fdps:
         dump(fdp, dst)
+    return len(fdps)
+
+
+def extract_agressive(src: Union[str, bytes], dst: str) -> int:
+    """Extracts structures from the source by trying to start parsing from every byte.
+
+    Args:
+        src (str|bytes): The source that should be searched. Can be a filepath or bytes.
+        dst (str): Destination folder where the reconstructed structures will be stored in.
+
+    Returns:
+       int: Count of extracted structures
+    """
+    if isinstance(src, str):
+        with open(src, "rb") as f:
+            data = f.read()
+    else:
+        data = src
+
+    fdps = search_agressive(data)
+    for fdp in fdps:
+        dump(fdp, dst)
+    return len(fdps)
 
 
 def search_via_filename(data):
@@ -53,6 +81,27 @@ def search_via_filename(data):
         except (UnicodeDecodeError, DecodeError):
             continue
 
+    return found
+
+
+def search_agresive_job(inp):
+    offset, data = inp
+    try:
+        fdp = FileDescriptorProto()
+        fdp.ParseFromString(data[offset:])
+        return fdp
+    except DecodeError:
+        pass
+
+
+def search_agressive(data):
+    found = []
+    with Pool(processes=cpu_count()) as pool:
+        for result in pool.imap_unordered(
+            search_agresive_job, ((i, data) for i in range(len(data)))
+        ):
+            if result:
+                found.append(result)
     return found
 
 
@@ -298,5 +347,34 @@ def dump(fdp: FileDescriptorProto, dst=""):
             f.write(f"}}\n")
 
 
+def extract_cli():
+    """function for CLI access"""
+    parser = argparse.ArgumentParser(usage = """"protoex - a protobuf structure extractor"
+
+    Extraction Modes:
+    - filename : try to find structures by looking for viable original filenames (less trash)
+    - agressive : try to parse at every byte (more trash, but also more likely to find every message)"
+    """)
+    parser.add_argument(
+        "mode",
+        type=str,
+        help="filename (default) or agressive",
+        default="filename",
+    )
+    parser.add_argument(
+        "src", type=str, help="path of the file to be scraped"
+    )
+    parser.add_argument(
+        "dst", type=str, help="dir where the recovered structures will be saved"
+    )
+    args = parser.parse_args()
+    if args.mode == "filename":
+        extract_via_filename(args.src, args.dst)
+    elif args.mode == "agressive":
+        extract_agressive(args.src, args.dst)
+    else:
+        print("Invalid mode")
+
+
 if __name__ == "__main__":
-    pass
+    extract_cli()
